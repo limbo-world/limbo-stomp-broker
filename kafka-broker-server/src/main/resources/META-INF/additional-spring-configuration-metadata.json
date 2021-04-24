@@ -1,0 +1,56 @@
+{
+    "properties": [
+        {
+            "name": "broker.server.port",
+            "type": "java.lang.Integer",
+            "description": "STOMP Broker服务启动监听的端口",
+            "defaultValue": 61613
+        },
+        {
+            "name": "broker.server.accept-count",
+            "type": "java.lang.String",
+            "description": "Netty服务bossGroup线程数量"
+        },
+        {
+            "name": "broker.server.worker-count",
+            "type": "java.lang.String",
+            "description": "Netty服务workerGroup线程数量"
+        },
+        {
+            "name": "broker.clients",
+            "type": "java.util.List",
+            "description": "被代理的STOMP服务器"
+        },
+        {
+            "name": "broker.clients[0].host",
+            "type": "java.lang.String",
+            "sourceType": "org.limbo.stomp.kafka.server.spring.config.props.StompBrokerClientsProperties",
+            "description": "被代理的STOMP服务器（client）使用的host"
+        },
+        {
+            "name": "broker.clients[0].credential",
+            "type": "java.util.List",
+            "sourceType": "org.limbo.stomp.kafka.server.spring.config.props.StompBrokerClientsProperties",
+            "description": "被代理的STOMP服务器（client）连接Broker时的认证凭据"
+        },
+        {
+            "name": "broker.clients[0].credential[0].username",
+            "type": "java.lang.String",
+            "sourceType": "org.limbo.stomp.kafka.server.spring.config.props.StompBrokerClientsProperties$Credential",
+            "description": "被代理的STOMP服务器（client）连接Broker时的，进行登录认证的用户名"
+        },
+        {
+            "name": "broker.clients[0].credential[0].password",
+            "type": "java.lang.String",
+            "sourceType": "org.limbo.stomp.kafka.server.spring.config.props.StompBrokerClientsProperties$Credential",
+            "description": "被代理的STOMP服务器（client）连接Broker时的，进行登录认证的密码"
+        },
+        {
+            "name": "broker.clients[0].credential[0].type",
+            "type": "org.limbo.stomp.kafka.server.spring.config.props.StompBrokerClientsProperties$CredentialType",
+            "sourceType": "org.limbo.stomp.kafka.server.spring.config.props.StompBrokerClientsProperties$Credential",
+            "description": "被代理的STOMP服务器（client）连接Broker时的凭据类型，有client连接和user连接两种",
+            "defaultValue": "USER"
+        }
+    ]
+}

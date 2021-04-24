@@ -1,0 +1,27 @@
+
+
+broker:
+  server:
+    port: 16163
+    accept-count: 2
+    worker-count: 4
+  clients:
+    - host: popo_vmeeting_web_stomp_dev
+      credentials:
+        - username: test
+          password: hello
+          type: CLIENT
+        - username: testuser
+          password: world
+          type: USER
+    - host: popo_vmeeting_web_stomp_test
+      credentials:
+        - username: test,
+          password: hello2
+          type: CLIENT
+        - username: testuser
+          password: world2
+          type: USER
+
+  kafka:
+    host:
