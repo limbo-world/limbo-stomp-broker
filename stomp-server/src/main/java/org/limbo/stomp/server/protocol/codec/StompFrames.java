@@ -24,12 +24,13 @@ import io.netty.handler.codec.stomp.StompHeaders;
 import org.apache.commons.lang3.StringUtils;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Objects;
 
 /**
  * @author Brozen
  * @since 2021-04-06
  */
-public class StompFrameUtils {
+public class StompFrames {
 
     private static final byte[] EMPTY_BODY = new byte[0];
 
@@ -72,12 +73,17 @@ public class StompFrameUtils {
 
 
     /**
-     * TODO 创建心跳帧
-     *
-     * @return 心跳帧
+     * 创建RECEIPT帧，在收到客户端DISCONNECT帧之后发送，发送完成后断开连接。
+     * @param receiptId DISCONNECT确认ID
+     * @return RECEIPT帧
      */
-    public static StompFrame createHeartBeatFrame() {
-        return null;
+    public static StompFrame createReceiptFrame(Long receiptId) {
+        Objects.requireNonNull(receiptId, "receiptId cannot be null");
+
+        DefaultStompFrame frame = new DefaultStompFrame(StompCommand.RECEIPT);
+        frame.headers().set(StompHeaders.RECEIPT_ID, receiptId.toString());
+
+        return frame;
     }
 
 }

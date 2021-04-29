@@ -14,4 +14,5 @@ public class BrokerClientUserResolverFactory extends CachedBrokerUserResolverFac
     protected BrokerUserResolver doCreateBrokerUserResolver(Channel channel) {
         return new BrokerClientUserResolver(channel);
     }
+
 }

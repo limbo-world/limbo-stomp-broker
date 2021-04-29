@@ -18,17 +18,18 @@ package org.limbo.stomp.server.starter.config;
 
 import org.limbo.stomp.server.broker.user.BrokerUserResolverFactory;
 import org.limbo.stomp.server.broker.user.CachedBrokerUserResolverFactory;
-import org.limbo.stomp.server.protocol.server.StompBrokerClientChannelInitializer;
-import org.limbo.stomp.server.protocol.server.StompBrokerServer;
+import org.limbo.stomp.server.protocol.server.StompClientChannelInitializer;
+import org.limbo.stomp.server.protocol.server.StompServer;
+import org.limbo.stomp.server.protocol.server.StompServerConfig;
 import org.limbo.stomp.server.starter.StompServerStarter;
 import org.limbo.stomp.server.starter.broker.PropertiesBrokerClientProvider;
 import org.limbo.stomp.server.starter.config.props.StompBrokerProperties;
 import org.limbo.stomp.server.starter.config.props.StompBrokerServerProperties;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-
-import java.util.ServiceLoader;
 
 /**
  * @author Brozen
@@ -38,43 +39,57 @@ import java.util.ServiceLoader;
 @EnableConfigurationProperties(StompBrokerProperties.class)
 public class StompBrokerAutoConfiguration {
 
-    /**
-     * 配置一个StompBrokerServer
-     */
-    @Bean
-    public StompBrokerServer stompServer(StompBrokerProperties brokerProperties) {
-        StompBrokerServerProperties serverProperties = brokerProperties.getServer();
-        StompBrokerServer stompBrokerServer = new StompBrokerServer(
-                serverProperties.getPort(),
-                serverProperties.getAcceptorCount(),
-                serverProperties.getWorkerCount()
-        );
-
-        stompBrokerServer.setChannelInitializer(brokerClientChannelInitializer(brokerProperties));
-        return stompBrokerServer;
-    }
-
-    /**
-     * 声明一个客户端连接初始化器，会注册STOMP协议的解包、封包处理器
-     */
-    public StompBrokerClientChannelInitializer brokerClientChannelInitializer(StompBrokerProperties brokerProperties) {
-        StompBrokerClientChannelInitializer channelInitializer = new StompBrokerClientChannelInitializer();
-
-        // 通过SPI加载BrokerUserResolverFactory
-        ServiceLoader<BrokerUserResolverFactory> serviceLoader = ServiceLoader.load(BrokerUserResolverFactory.class);
-        BrokerUserResolverFactory brokerUserResolverFactory = serviceLoader.findFirst()
-                .orElseGet(CachedBrokerUserResolverFactory::new);
-        channelInitializer.setBrokerClientProvider(new PropertiesBrokerClientProvider(brokerProperties.getClients(), brokerUserResolverFactory));
-
-        return channelInitializer;
-    }
+    @Autowired
+    StompBrokerProperties brokerProperties;
 
     /**
      * StompBrokerServer的启动器Bean，在SpringBean的声明周期中管理StompBrokerServer的声明周期
      */
     @Bean
-    public StompServerStarter stompServerStarter(StompBrokerServer server) {
+    public StompServerStarter stompServerStarter(StompServer server) {
         return new StompServerStarter(server);
+    }
+
+    /**
+     * 配置一个StompBrokerServer
+     */
+    @Bean
+    public StompServer stompServer(StompClientChannelInitializer clientChannelInitializer) {
+        StompBrokerServerProperties serverProperties = brokerProperties.getServer();
+        StompServer stompServer = new StompServer(
+                StompServerConfig.builder()
+                        .port(serverProperties.getPort())
+                        .acceptorCount(serverProperties.getAcceptorCount())
+                        .workerCount(serverProperties.getWorkerCount())
+                        .build()
+        );
+
+        stompServer.setChannelInitializer(clientChannelInitializer);
+        return stompServer;
+    }
+
+    /**
+     * 声明一个客户端连接初始化器，会注册STOMP协议的解包、封包处理器
+     */
+    @Bean
+    public StompClientChannelInitializer brokerClientChannelInitializer(
+            BrokerUserResolverFactory brokerUserResolverFactory) {
+        StompClientChannelInitializer channelInitializer = new StompClientChannelInitializer();
+
+        PropertiesBrokerClientProvider brokerClientProvider =
+                new PropertiesBrokerClientProvider(brokerProperties.getClients(), brokerUserResolverFactory);
+        channelInitializer.setBrokerClientProvider(brokerClientProvider);
+
+        return channelInitializer;
+    }
+
+    /**
+     * 用户解析器工厂，当使用starter的服务未指定一个解析器工厂时，会使用默认的这个
+     */
+    @Bean
+    @ConditionalOnMissingBean(BrokerUserResolverFactory.class)
+    public BrokerUserResolverFactory brokerUserResolverFactory() {
+        return new CachedBrokerUserResolverFactory();
     }
 
 }

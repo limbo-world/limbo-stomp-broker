@@ -18,7 +18,15 @@ package org.limbo.stomp.server.broker.user;
 
 import io.netty.channel.group.ChannelGroup;
 import io.netty.channel.group.DefaultChannelGroup;
+import io.netty.handler.codec.stomp.StompFrame;
 import io.netty.util.concurrent.EventExecutor;
+import org.limbo.stomp.server.broker.messaging.StompMessage;
+import org.limbo.stomp.server.broker.messaging.MessageProcessor;
+import org.limbo.stomp.server.broker.messaging.MessageSubscription;
+import org.limbo.stomp.server.protocol.handlers.exceptions.MessageSendException;
+import org.limbo.stomp.server.protocol.handlers.exceptions.SubscribeException;
+import org.reactivestreams.Publisher;
+import reactor.core.publisher.Mono;
 
 /**
  * @author Brozen
@@ -31,6 +39,11 @@ public class SimpBrokerUser implements BrokerUser {
     protected final String userId;
 
     protected final ChannelGroup userChannels;
+
+    /**
+     * 代理MessageProcessor
+     */
+    protected MessageProcessor messageProcessor;
 
     public SimpBrokerUser(String host, String userId, EventExecutor executor) {
         this.host = host;
@@ -65,5 +78,52 @@ public class SimpBrokerUser implements BrokerUser {
     @Override
     public ChannelGroup channels() {
         return this.userChannels;
+    }
+
+    // --------------------- 以下实现MessageProcessor接口
+
+    /**
+     * {@inheritDoc}
+     * @param subscription 客户端订阅参数
+     * @return
+     */
+    @Override
+    public Mono<Publisher<StompFrame>> subscribe(MessageSubscription subscription) {
+        if (this.messageProcessor == null) {
+            return Mono.error(new SubscribeException(String.format(
+                    "Cannot subscribe %s %s, SUBSCRIBE frame is not supported!",
+                    subscription.getSubscribeId(), subscription.getDestination())));
+        }
+
+        return this.messageProcessor.subscribe(subscription);
+    }
+
+    /**
+     * {@inheritDoc}
+     * @param id UNSUBSCRIBE帧的ID头。
+     * @return
+     */
+    @Override
+    public Mono<Void> unsubscribe(Long id) {
+        if (this.messageProcessor == null) {
+            return Mono.error(new SubscribeException(String.format(
+                    "Cannot unsubscribe %s, UNSUBSCRIBE frame is not supported!", id)));
+        }
+
+        return this.messageProcessor.unsubscribe(id);
+    }
+
+    /**
+     * {@inheritDoc}
+     * @param message 待发送的消息
+     * @return
+     */
+    @Override
+    public Mono<Void> send(StompMessage message) {
+        if (this.messageProcessor == null) {
+            return Mono.error(new MessageSendException("Cannot send message, SEND frame is not supported!"));
+        }
+
+        return this.messageProcessor.send(message);
     }
 }

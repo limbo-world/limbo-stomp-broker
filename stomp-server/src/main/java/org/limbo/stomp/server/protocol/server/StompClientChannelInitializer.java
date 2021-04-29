@@ -23,13 +23,13 @@ import io.netty.handler.codec.stomp.StompSubframeDecoder;
 import io.netty.handler.codec.stomp.StompSubframeEncoder;
 import lombok.Setter;
 import org.limbo.stomp.server.broker.client.BrokerClientProvider;
-import org.limbo.stomp.server.protocol.handlers.StompBrokerMessageChannelHandler;
+import org.limbo.stomp.server.protocol.handlers.StompMessageChannelHandler;
 
 /**
  * @author Brozen
  * @since 2021-04-07
  */
-public class StompBrokerClientChannelInitializer extends ChannelInitializer<Channel> {
+public class StompClientChannelInitializer extends ChannelInitializer<Channel> {
 
     /**
      * Broker代理的STOMP服务器信息
@@ -40,7 +40,7 @@ public class StompBrokerClientChannelInitializer extends ChannelInitializer<Chan
 
     @Override
     protected void initChannel(Channel ch) {
-        StompBrokerMessageChannelHandler brokerChannelHandler = new StompBrokerMessageChannelHandler();
+        StompMessageChannelHandler brokerChannelHandler = new StompMessageChannelHandler();
         brokerChannelHandler.setBrokerClientProvider(brokerClientProvider);
 
         ch.pipeline()

@@ -18,6 +18,7 @@ package org.limbo.stomp.server.protocol.handlers.frames;
 
 import io.netty.handler.codec.stomp.StompCommand;
 import io.netty.handler.codec.stomp.StompHeaders;
+import org.limbo.stomp.server.protocol.handlers.exceptions.StompFrameProcessException;
 
 /**
  * @author Brozen
@@ -31,14 +32,22 @@ public interface StompFrameHandler {
     StompFrameHandler IDLE = (headers, payload) -> { };
 
     /**
-     * @return 获取处理器要处理的STOMP帧 command
+     * 抛出不支持异常的处理器
+     */
+    StompFrameHandler UNSUPPORTED = (headers, payload) -> {
+        throw new StompFrameProcessException("不支持的command");
+    };
+
+    /**
+     * 获取处理器要处理的STOMP帧 command
+     * @return 处理器要处理的STOMP帧 command
      */
     default StompCommand processedCommand() {
         return StompCommand.UNKNOWN;
     }
 
     /**
-     * 处理STOMP帧
+     * 处理STOMP帧。
      * @param headers 请求头
      * @param payload 负载数据
      */

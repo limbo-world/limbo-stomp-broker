@@ -22,16 +22,13 @@ import io.netty.handler.codec.stomp.DefaultStompFrame;
 import io.netty.handler.codec.stomp.StompCommand;
 import io.netty.handler.codec.stomp.StompFrame;
 import io.netty.handler.codec.stomp.StompHeaders;
-import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.limbo.stomp.server.broker.client.BrokerClient;
-import org.limbo.stomp.server.broker.client.BrokerClientProvider;
 import org.limbo.stomp.server.broker.user.BrokerUser;
 import org.limbo.stomp.server.broker.user.BrokerUserResolver;
-import org.limbo.stomp.server.broker.user.BrokerUserResolverFactory;
-import org.limbo.stomp.server.protocol.codec.StompFrameUtils;
+import org.limbo.stomp.server.protocol.codec.StompFrames;
 import org.limbo.stomp.server.protocol.handlers.ChannelHandlerContextDelegate;
 import org.limbo.stomp.server.protocol.handlers.StompHeartBeatReceiver;
 import org.limbo.stomp.server.utils.ChannelUtils;
@@ -69,22 +66,8 @@ public class ConnectFrameHandler extends AbstractStompFrameHandler {
      */
     private static final Tuple2<Long, Long> DEFAULT_HEART_BEAT = Tuples.of(10000L, 10000L);
 
-    /**
-     * 用于获取 被代理的STOMP服务器应用信息
-     */
-    @Setter
-    private BrokerClientProvider brokerClientProvider;
-
     public ConnectFrameHandler(ChannelHandlerContextDelegate channelHandlerContext) {
-        super(channelHandlerContext);
-    }
-
-    /**
-     * @see StompFrameHandler#processedCommand()
-     */
-    @Override
-    public StompCommand processedCommand() {
-        return StompCommand.CONNECT;
+        super(StompCommand.CONNECT, channelHandlerContext);
     }
 
     /**
@@ -101,7 +84,7 @@ public class ConnectFrameHandler extends AbstractStompFrameHandler {
         if (acceptVersions.stream().noneMatch(ACCEPT_VERSIONS::contains)) {
 
             // 不接受的版本号
-            returnFrame = StompFrameUtils.createErrorFrame("version " + acceptVersions + " is not supported!");
+            returnFrame = StompFrames.createErrorFrame("version " + acceptVersions + " is not supported!");
 
         } else {
 
@@ -160,9 +143,9 @@ public class ConnectFrameHandler extends AbstractStompFrameHandler {
         // 认证通过则根据BrokerUserResolver解析被代理的用户，注册到repository，并返回CONNECTED帧；
         // 认证失败则返回ERROR帧；
         return Optional.ofNullable(host)
-                .flatMap(hs -> brokerClientProvider.getBrokerClient(hs))
+                .flatMap(hs -> getBrokerClientProvider().getBrokerClient(hs))
                 .map(brokerClient -> doProcessConnectFrame(headers, payload, brokerClient))
-                .orElseGet(() -> StompFrameUtils.createErrorFrame("Authentication Failed"));
+                .orElseGet(() -> StompFrames.createErrorFrame("Authentication Failed"));
     }
 
     /**
@@ -184,8 +167,7 @@ public class ConnectFrameHandler extends AbstractStompFrameHandler {
             try {
                 // 获取用户解析器
                 ChannelHandlerContext context = getChannelHandlerContext();
-                BrokerUserResolverFactory userResolverFactory = brokerClientProvider.getBrokerUserResolverFactory();
-                BrokerUserResolver brokerUserResolver = userResolverFactory.getResolver(getChannelHandlerContext().channel());
+                BrokerUserResolver brokerUserResolver = getBrokerUserResolver();
 
                 // 登录认证成功，注册Broker用户信息
                 BrokerUser user = brokerUserResolver.resolve(headers, payload);
@@ -194,7 +176,7 @@ public class ConnectFrameHandler extends AbstractStompFrameHandler {
                 // 绑定Channel
                 user.channels().add(context.channel());
 
-                // TODO 使用channelId作为session
+                // 使用channelId作为session
                 StompFrame connectedFrame = createConnectedFrame();
                 connectedFrame.headers().set(StompHeaders.SESSION, ChannelUtils.id(context.channel()));
 
@@ -205,12 +187,12 @@ public class ConnectFrameHandler extends AbstractStompFrameHandler {
                 return connectedFrame;
             } catch (Exception e) {
                 log.error("用户登录认证失败！", e);
-                return StompFrameUtils.createErrorFrame("Authentication Failed: " + e.getMessage());
+                return StompFrames.createErrorFrame("Authentication Failed: " + e.getMessage());
             }
 
         } else {
             // 认证失败，返回ERROR帧
-            return StompFrameUtils.createErrorFrame("Authentication Failed");
+            return StompFrames.createErrorFrame("Authentication Failed");
         }
     }
 
@@ -253,7 +235,7 @@ public class ConnectFrameHandler extends AbstractStompFrameHandler {
             // 防止网络问题或处理超时，服务端实际发送心跳速率是真实速率的2倍
             sx = sx / 2;
             context.executor().scheduleAtFixedRate(
-                    () -> context.write(StompFrameUtils.createHeartBeatFrame()), sx, sx, TimeUnit.MILLISECONDS);
+                    () -> context.write(Unpooled.buffer(0)), sx, sx, TimeUnit.MILLISECONDS);
         } else {
             if (log.isDebugEnabled()) {
                 log.debug("不向客户端发送心跳 client={} server={}", heatBeat, DEFAULT_HEART_BEAT);

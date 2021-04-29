@@ -19,13 +19,17 @@ package org.limbo.stomp.server.protocol.handlers;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.stomp.StompCommand;
 import io.netty.handler.codec.stomp.StompFrame;
+import io.netty.handler.codec.stomp.StompHeaders;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.limbo.stomp.server.protocol.handlers.frames.ConnectFrameHandler;
-import org.limbo.stomp.server.protocol.handlers.frames.StompFrameHandler;
 import org.limbo.stomp.server.broker.client.BrokerClientProvider;
+import org.limbo.stomp.server.protocol.codec.StompFrames;
+import org.limbo.stomp.server.protocol.handlers.exceptions.StompFrameProcessException;
+import org.limbo.stomp.server.protocol.handlers.frames.*;
+import org.limbo.stomp.server.protocol.server.StompServerConfig;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
@@ -36,10 +40,16 @@ import java.util.concurrent.ConcurrentHashMap;
  * @since 2021-04-06
  */
 @Slf4j
-public class StompBrokerMessageChannelHandler extends ChannelInboundHandlerAdapter {
+public class StompMessageChannelHandler extends ChannelInboundHandlerAdapter {
 
     /**
-     * Broker的客户端连接身份认证凭据
+     * STOMP服务配置
+     */
+    @Setter
+    private StompServerConfig serverConfig;
+
+    /**
+     * 客户端连接身份认证凭据
      */
     @Setter
     private BrokerClientProvider brokerClientProvider;
@@ -55,7 +65,7 @@ public class StompBrokerMessageChannelHandler extends ChannelInboundHandlerAdapt
     private ChannelHandlerContextDelegate channelHandlerContextDelegate;
 
 
-    public StompBrokerMessageChannelHandler() {
+    public StompMessageChannelHandler() {
         this.frameHandlers = new ConcurrentHashMap<>();
         this.channelHandlerContextDelegate = new ChannelHandlerContextDelegate();
     }
@@ -79,14 +89,25 @@ public class StompBrokerMessageChannelHandler extends ChannelInboundHandlerAdapt
         frameHandlers.put(StompCommand.STOMP, connectFrameHandler);
         frameHandlers.put(StompCommand.CONNECT, connectFrameHandler);
 
-        // TODO
-        // frameHandlers.put(StompCommand.SEND, null);
-        // frameHandlers.put(StompCommand.SUBSCRIBE, null);
-        // frameHandlers.put(StompCommand.UNSUBSCRIBE, null);
+        // 客户端发送消息
+        SendFrameHandler sendFrameHandler = new SendFrameHandler(channelHandlerContextDelegate);
+        frameHandlers.put(StompCommand.SEND, sendFrameHandler);
+
+        // 客户端订阅、取消订阅
+        frameHandlers.put(StompCommand.SUBSCRIBE, new SubscribeFrameHandler(channelHandlerContextDelegate));
+        frameHandlers.put(StompCommand.UNSUBSCRIBE, new UnsubscribeFrameHandler(channelHandlerContextDelegate));
+
+        // TODO 消息确认
         // frameHandlers.put(StompCommand.ACK, null);
         // frameHandlers.put(StompCommand.NACK, null);
-        // frameHandlers.put(StompCommand.DISCONNECT, null);
-        // frameHandlers.put(StompCommand.MESSAGE, null);
+
+        // TODO 消息事务
+        // frameHandlers.put(StompCommand.BEGIN, null);
+        // frameHandlers.put(StompCommand.COMMIT, null);
+        // frameHandlers.put(StompCommand.ABORT, null);
+
+        // 断开连接
+        frameHandlers.put(StompCommand.DISCONNECT, new DisconnectFrameHandler(channelHandlerContextDelegate));
     }
 
 
@@ -98,20 +119,47 @@ public class StompBrokerMessageChannelHandler extends ChannelInboundHandlerAdapt
         StompFrame frame = (StompFrame) msg;
         log.info("收到STOMP帧 {}", frame);
 
+        // 检测Content-Length
+        StompHeaders headers = frame.headers();
+        ByteBuf payload = frame.content();
+        Integer contentLength = headers.getInt(StompHeaders.CONTENT_LENGTH);
+        if (contentLength == null) {
+            contentLength = payload.readableBytes();
+        }
+        if (contentLength > serverConfig.getMaxMessageContentLength()) {
+            throw new StompFrameProcessException("accepted max content length is " + serverConfig.getMaxMessageContentLength());
+        }
+
         // 解析STOMP帧处理器
         StompCommand command = frame.command();
-        StompFrameHandler frameHandler = this.frameHandlers.getOrDefault(command, StompFrameHandler.IDLE);
+        StompFrameHandler frameHandler = this.frameHandlers.getOrDefault(command, StompFrameHandler.UNSUPPORTED);
 
         // 解析payload
-        ByteBuf payload = frame.content();
         String payloadString = payload.toString(StandardCharsets.UTF_8);
 
         // 执行处理器
-        frameHandler.process(frame.headers(), payloadString);
+        frameHandler.process(headers, payloadString);
 
         // 取消代理ctx
         channelHandlerContextDelegate.removeDelegate(ctx);
 
-        super.channelRead(ctx, msg);
     }
+
+
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+        log.error("[stomp.server] 未处理异常抛出 channel={} cause={}", ctx.channel(), cause);
+        StompFrame errorFrame;
+        if (cause instanceof StompFrameProcessException) {
+            errorFrame = StompFrames.createErrorFrame(cause.getMessage());
+        } else if (cause instanceof DecoderException) {
+            errorFrame = StompFrames.createErrorFrame("Decode frame failed!");
+        } else {
+            errorFrame = StompFrames.createErrorFrame("Unknown Error: " + cause.getMessage());
+        }
+
+        ctx.writeAndFlush(errorFrame);
+        ctx.disconnect();
+    }
+
 }

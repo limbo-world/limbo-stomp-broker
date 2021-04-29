@@ -17,12 +17,13 @@
 package org.limbo.stomp.server.broker.user;
 
 import io.netty.channel.group.ChannelGroup;
+import org.limbo.stomp.server.broker.messaging.MessageProcessor;
 
 /**
  * @author Brozen
  * @since 2021-04-07
  */
-public interface BrokerUser {
+public interface BrokerUser extends MessageProcessor {
 
     /**
      * @return 获取用户所属app

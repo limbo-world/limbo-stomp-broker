@@ -16,7 +16,7 @@
 
 package org.limbo.stomp.server.starter;
 
-import org.limbo.stomp.server.protocol.server.StompBrokerServer;
+import org.limbo.stomp.server.protocol.server.StompServer;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
 
@@ -26,9 +26,9 @@ import org.springframework.beans.factory.InitializingBean;
  */
 public class StompServerStarter implements InitializingBean, DisposableBean {
 
-    private final StompBrokerServer server;
+    private final StompServer server;
 
-    public StompServerStarter(StompBrokerServer server) {
+    public StompServerStarter(StompServer server) {
         this.server = server;
     }
 

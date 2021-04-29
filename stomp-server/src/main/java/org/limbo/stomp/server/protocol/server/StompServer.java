@@ -27,31 +27,24 @@ import org.limbo.stomp.server.utils.NumberVerifies;
 
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
-import static org.limbo.stomp.server.protocol.server.StompBrokerServer.StompBrokerServerState.*;
+import static org.limbo.stomp.server.protocol.server.StompServer.StompBrokerServerState.*;
 
 /**
  * @author Brozen
  * @since 2021-04-06
  */
 @Slf4j
-public class StompBrokerServer {
-
-    private final int port;
+public class StompServer {
 
     /**
-     * 连接加入处理线程池大小
+     * 服务器配置信息
      */
-    private final Integer acceptorCount;
+    private StompServerConfig serverConfig;
 
     /**
      * 连接加入处理线程池
      */
     private NioEventLoopGroup acceptorGroup;
-
-    /**
-     * 数据包处理线程池大小
-     */
-    private final Integer workerCount;
 
     /**
      * 数据包处理线程池
@@ -72,7 +65,7 @@ public class StompBrokerServer {
      * 被代理STOMP服务器连接的初始化器
      */
     @Setter
-    private StompBrokerClientChannelInitializer channelInitializer;
+    private StompClientChannelInitializer channelInitializer;
 
     /**
      * 代理服务器的状态
@@ -80,18 +73,11 @@ public class StompBrokerServer {
     @Getter
     private volatile StompBrokerServerState state;
 
-    private static final AtomicReferenceFieldUpdater<StompBrokerServer, StompBrokerServerState> stateUpdater
-            = AtomicReferenceFieldUpdater.newUpdater(StompBrokerServer.class, StompBrokerServerState.class, "state");
+    private static final AtomicReferenceFieldUpdater<StompServer, StompBrokerServerState> stateUpdater
+            = AtomicReferenceFieldUpdater.newUpdater(StompServer.class, StompBrokerServerState.class, "state");
 
-    /**
-     * @param port 服务启动监听的端口号
-     * @param acceptorCount 连接加入处理线程池大小
-     * @param workerCount 数据包处理线程池大小
-     */
-    public StompBrokerServer(int port, int acceptorCount, int workerCount) {
-        this.port = port;
-        this.acceptorCount = NumberVerifies.positive(acceptorCount);
-        this.workerCount = NumberVerifies.positive(workerCount);
+    public StompServer(StompServerConfig config) {
+        this.serverConfig = config;
         this.state = INITIALIZED;
     }
 
@@ -111,8 +97,8 @@ public class StompBrokerServer {
         }
 
         // 线程池
-        acceptorGroup = new NioEventLoopGroup(acceptorCount);
-        workerGroup = new NioEventLoopGroup(workerCount);
+        acceptorGroup = new NioEventLoopGroup(serverConfig.getAcceptorCount());
+        workerGroup = new NioEventLoopGroup(serverConfig.getWorkerCount());
 
         ServerBootstrap bootstrap = new ServerBootstrap();
         bootstrap.group(acceptorGroup, workerGroup)
@@ -120,9 +106,9 @@ public class StompBrokerServer {
                 .option(ChannelOption.SO_BACKLOG, 1024)
                 .childHandler(channelInitializer);
 
-        startFuture = bootstrap.bind(port);
+        startFuture = bootstrap.bind(serverConfig.getPort());
         startFuture.addListener(f -> {
-            log.info("Server启动成功 at {}", port);
+            log.info("Server启动成功 at {}", serverConfig.getPort());
             if (!stateUpdater.compareAndSet(this, STARTING, RUNNING)) {
                 log.warn("Broker服务状态异常，启动成功，state={}", state);
             }

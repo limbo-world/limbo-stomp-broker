@@ -18,7 +18,7 @@ package org.limbo.stomp.server.protocol.handlers;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
-import org.limbo.stomp.server.protocol.codec.StompFrameUtils;
+import org.limbo.stomp.server.protocol.codec.StompFrames;
 
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -63,7 +63,7 @@ public class StompHeartBeatReceiver extends ChannelInboundHandlerAdapter {
                 long now = System.currentTimeMillis();
                 if (heartBeatInterval + lastHeartBeatTimestamp < now) {
                     // 心跳超时，写出ERROR帧
-                    ctx.writeAndFlush(StompFrameUtils.createErrorFrame("Heartbeat Timeout"));
+                    ctx.writeAndFlush(StompFrames.createErrorFrame("Heartbeat Timeout"));
 
                     // 移除心跳接受检测ChannelHandler
                     ctx.pipeline().remove(NAME);
