@@ -1,6 +1,8 @@
 package org.limbo.stomp.server.protocol.handlers.exceptions;
 
 /**
+ * SUBSCRIBE帧处理异常
+ *
  * @author Brozen
  * @since 2021-04-29
  */

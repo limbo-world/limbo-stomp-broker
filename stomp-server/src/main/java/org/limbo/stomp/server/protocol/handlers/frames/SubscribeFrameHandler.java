@@ -5,10 +5,9 @@ import io.netty.handler.codec.stomp.StompHeaders;
 import org.limbo.stomp.server.broker.messaging.MessageSubscription;
 import org.limbo.stomp.server.broker.user.BrokerUser;
 import org.limbo.stomp.server.broker.user.BrokerUserResolver;
-import org.limbo.stomp.server.protocol.codec.SubscribeAcknowledges;
+import org.limbo.stomp.server.protocol.codec.AckMode;
 import org.limbo.stomp.server.protocol.handlers.ChannelHandlerContextDelegate;
 import org.limbo.stomp.server.utils.StringVerifies;
-import reactor.core.publisher.Flux;
 
 import java.util.List;
 import java.util.Map;
@@ -39,7 +38,7 @@ public class SubscribeFrameHandler extends AbstractStompFrameHandler {
         // 解析SUBSCRIBE帧的订阅参数
         Long subscribeId = headers.getLong(StompHeaders.ID);
         String destination = headers.getAsString(StompHeaders.DESTINATION);
-        SubscribeAcknowledges ack = SubscribeAcknowledges.parse(headers.getAsString(StompHeaders.ACK));
+        AckMode ack = AckMode.parse(headers.getAsString(StompHeaders.ACK));
 
         // 校验
         Objects.requireNonNull(subscribeId, "subscribe header required");
@@ -55,13 +54,12 @@ public class SubscribeFrameHandler extends AbstractStompFrameHandler {
                 .setAck(ack)
                 .setOriginHeaders(headersMap)
                 .setOriginPayload(payload)
-        ).subscribe(publisher -> {
+        ).subscribe(flux -> {
             // 订阅成功，订阅事件源，将StompFrame写回客户端
-            Flux.from(publisher)
-                    .subscribe(
-                            frame -> this.doInEventLoop(ctx -> ctx.write(frame)),
-                            error -> this.doInEventLoop(ctx -> ctx.fireExceptionCaught(error))
-                    );
+            flux.subscribe(
+                    frame -> this.doInEventLoop(ctx -> ctx.write(frame)),
+                    error -> this.doInEventLoop(ctx -> ctx.fireExceptionCaught(error))
+            );
         }, error -> {
             // 订阅失败，写回ERROR帧，关闭连接
             this.doInEventLoop(ctx -> ctx.fireExceptionCaught(error));

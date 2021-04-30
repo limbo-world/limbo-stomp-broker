@@ -23,6 +23,11 @@ public class SimpStompMessage implements StompMessage {
     private int redeliveryTimes;
 
     /**
+     * 消息上次被投递的时间戳
+     */
+    private long emitTimestamp;
+
+    /**
      * STOMP消息头
      */
     private Map<String, List<String>> headers;

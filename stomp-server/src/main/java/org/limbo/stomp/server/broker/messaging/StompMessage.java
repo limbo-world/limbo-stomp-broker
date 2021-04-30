@@ -20,6 +20,11 @@ public interface StompMessage {
     int getRedeliveryTimes();
 
     /**
+     * 获取上次被投递的时间戳
+     */
+    long getEmitTimestamp();
+
+    /**
      * 获取STOMP消息的headers
      */
     Map<String, List<String>> getHeaders();

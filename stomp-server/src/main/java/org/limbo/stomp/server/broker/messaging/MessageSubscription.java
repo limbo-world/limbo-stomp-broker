@@ -2,7 +2,7 @@ package org.limbo.stomp.server.broker.messaging;
 
 import lombok.Data;
 import lombok.experimental.Accessors;
-import org.limbo.stomp.server.protocol.codec.SubscribeAcknowledges;
+import org.limbo.stomp.server.protocol.codec.AckMode;
 
 import java.util.List;
 import java.util.Map;
@@ -27,7 +27,7 @@ public class MessageSubscription {
     /**
      * 一次订阅中，客户端对消息的通知方式。
      */
-    private SubscribeAcknowledges ack;
+    private AckMode ack;
 
     /**
      * SUBSCRIBE帧的请求头

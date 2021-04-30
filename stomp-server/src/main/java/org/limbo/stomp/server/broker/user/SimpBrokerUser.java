@@ -18,14 +18,13 @@ package org.limbo.stomp.server.broker.user;
 
 import io.netty.channel.group.ChannelGroup;
 import io.netty.channel.group.DefaultChannelGroup;
-import io.netty.handler.codec.stomp.StompFrame;
 import io.netty.util.concurrent.EventExecutor;
-import org.limbo.stomp.server.broker.messaging.StompMessage;
 import org.limbo.stomp.server.broker.messaging.MessageProcessor;
 import org.limbo.stomp.server.broker.messaging.MessageSubscription;
+import org.limbo.stomp.server.broker.messaging.StompMessage;
 import org.limbo.stomp.server.protocol.handlers.exceptions.MessageSendException;
 import org.limbo.stomp.server.protocol.handlers.exceptions.SubscribeException;
-import org.reactivestreams.Publisher;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 /**
@@ -88,7 +87,7 @@ public class SimpBrokerUser implements BrokerUser {
      * @return
      */
     @Override
-    public Mono<Publisher<StompFrame>> subscribe(MessageSubscription subscription) {
+    public Mono<Flux<StompMessage>> subscribe(MessageSubscription subscription) {
         if (this.messageProcessor == null) {
             return Mono.error(new SubscribeException(String.format(
                     "Cannot subscribe %s %s, SUBSCRIBE frame is not supported!",

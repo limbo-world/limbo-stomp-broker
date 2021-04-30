@@ -1,6 +1,8 @@
 package org.limbo.stomp.server.protocol.handlers.exceptions;
 
 /**
+ * SEND帧处理发生异常时，抛出此异常。
+ *
  * @author Brozen
  * @since 2021-04-29
  */
